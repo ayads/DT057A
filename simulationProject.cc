@@ -20,9 +20,6 @@
 #include <fstream>
 #include <iomanip>
 
-NS_LOG_COMPONENT_DEFINE ("projectPart3");
-
-
 std::ofstream LCGfile, UVfile;
 template<class T, int seed, int m, int a, int c>
 void LCG(){
@@ -35,9 +32,13 @@ void LCG(){
     }
 }
 
-
 using namespace ns3;
+NS_LOG_COMPONENT_DEFINE ("project_Part3");
+
 int main (int argc, char *argv[]){
+
+  bool tracing = false;
+
   //Linear Congruential Generator.
   LCGfile.open("outputLCG.txt");
   LCG<std::uint_fast32_t, 1, 500, 3, 0>();
@@ -51,6 +52,11 @@ int main (int argc, char *argv[]){
   } 
   UVfile.close();
   
+  // Allow the user to override any of the defaults at run-time.
+  CommandLine cmd;
+  cmd.AddValue ("tracing", "Flag to enable/disable tracing", tracing);
+  cmd.Parse (argc, argv);
+
   NS_LOG_INFO ("Create nodes.");
   NodeContainer n_container;
   n_container.Create (6);
@@ -72,7 +78,7 @@ int main (int argc, char *argv[]){
   NS_LOG_INFO ("Create channels to all devices.");
   PointToPointHelper p2p;
 
-  // Between sensors A B C D and gateway G
+  // Between sensors A B C D and gateway G.
   p2p.SetDeviceAttribute ("DataRate", StringValue ("250kbps"));
   p2p.SetChannelAttribute ("Delay", StringValue ("20ms"));
   NetDeviceContainer net_dev_AG = p2p.Install (n_AG);
@@ -80,7 +86,7 @@ int main (int argc, char *argv[]){
   NetDeviceContainer net_dev_CG = p2p.Install (n_CG);
   NetDeviceContainer net_dev_DG = p2p.Install (n_DG);
 
-  // Between actuator E and gateway G
+  // Between actuator E and gateway G.
   p2p.SetDeviceAttribute ("DataRate", StringValue ("250kbps"));
   p2p.SetChannelAttribute ("Delay", StringValue ("20ms"));
   NetDeviceContainer net_dev_EG = p2p.Install (n_EG);
@@ -89,7 +95,7 @@ int main (int argc, char *argv[]){
   InternetStackHelper internet;
   internet.Install (n_container);
   
-  // Assign IP addresses to the channels
+  // Assign IP addresses to the channels and implement them correspondingly.
   NS_LOG_INFO ("Assign IP Addresses.");
   Ipv4AddressHelper ipv4;
   ipv4.SetBase ("10.1.1.0", "255.255.255.0");
@@ -103,7 +109,8 @@ int main (int argc, char *argv[]){
   ipv4.SetBase ("10.1.5.0", "255.255.255.0");
   Ipv4InterfaceContainer interface_container_EG = ipv4.Assign (net_dev_EG);
   
-  // Create the OnOff application to send UDP datagrams of size 210 bytes at a rate of 448 Kb/s from n0 to n4
+  // Create the OnOff application to send UDP datagrams of size 210 bytes at a rate of 250kbps 
+  // from A to G, B to G, C to G, D to G and E to G.
   NS_LOG_INFO ("Create UDP Applications.");
   uint16_t port = 9;
   
@@ -136,9 +143,20 @@ int main (int argc, char *argv[]){
   ApplicationContainer sinkApps = sink.Install (sinks);
   sinkApps.Start (Seconds (0.0));
   sinkApps.Stop (Seconds (21.0));
+  
+  // Set tracing functionalities.
+  if(tracing){
+    AsciiTraceHelper ascii;
+    p2p.EnableAsciiAll (ascii.CreateFileStream ("project_part3.tr"));
+    p2p.EnablePcapAll ("project_part3", false);
+  }
 
-
+  // Run Simulation.
+  NS_LOG_INFO ("Run Simulation.");
+  Simulator::Stop (Seconds (10.0));
   Simulator::Run ();
   Simulator::Destroy ();
+  NS_LOG_INFO ("Done.");
+  
   return 0;
 }
