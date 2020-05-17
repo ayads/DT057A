@@ -10,6 +10,7 @@
 #include "ns3/point-to-point-layout-module.h"
 #include "ns3/network-module.h"
 #include "ns3/applications-module.h"
+#include "ns3/csma-module.h"
 #include "ns3/mobility-module.h"
 #include "ns3/internet-module.h"
 #include "ns3/yans-wifi-helper.h"
@@ -27,9 +28,9 @@ template<class T, int seed, int m, int a, int c> void LCG();
 double LCG2();
 
 std::ofstream LCGfile, UVfile;
-
 using namespace ns3;
 NS_LOG_COMPONENT_DEFINE ("project_Part3");
+
 int main (int argc, char *argv[]){
   /*****Exponential distribution*****/
   //expDist();
@@ -56,8 +57,11 @@ int main (int argc, char *argv[]){
     std::cout << std::setprecision(10) << ERV ->GetValue() << "\t" << i << "\n";
   }*/
 
+  Time::SetResolution (Time::NS);
+  LogComponentEnable ("UdpClient", LOG_LEVEL_INFO);
+  LogComponentEnable ("UdpServer", LOG_LEVEL_INFO);
 
-  bool tracing = false;
+  bool tracing = true;
   
   // Allow the user to override any of the defaults at run-time.
   CommandLine cmd;
@@ -65,102 +69,110 @@ int main (int argc, char *argv[]){
   cmd.Parse (argc, argv);
 
   NS_LOG_INFO ("Create nodes.");
-  NodeContainer n_container;
-  n_container.Create (6);
+  NodeContainer nodes;
+  nodes.Create (8);
 
-  // Create sensors.
-  NodeContainer n_AG = NodeContainer (n_container.Get (0), n_container.Get (1));
-  NodeContainer n_BG = NodeContainer (n_container.Get (0), n_container.Get (2));
-  NodeContainer n_CG = NodeContainer (n_container.Get (0), n_container.Get (3));
-  NodeContainer n_DG = NodeContainer (n_container.Get (0), n_container.Get (4));
+  // Add Internet stack helper to make use of IP addresses.
+  InternetStackHelper stack;
+  stack.Install (nodes);
 
-  // Create actuator.
-  NodeContainer n_EG = NodeContainer (n_container.Get (0), n_container.Get (5));
+  PointToPointHelper p2p1;
+  p2p1.SetDeviceAttribute ("DataRate", StringValue ("250kbps"));
+  p2p1.SetChannelAttribute ("Delay", StringValue ("20ms"));
+
+  PointToPointHelper p2p2;
+  p2p2.SetDeviceAttribute ("DataRate", StringValue ("250kbps"));
+  p2p2.SetChannelAttribute ("Delay", StringValue ("20ms"));
+
+  PointToPointHelper p2p3;
+  p2p3.SetDeviceAttribute ("DataRate", StringValue ("250kbps"));
+  p2p3.SetChannelAttribute ("Delay", StringValue ("20ms"));
+
+  // Assign IP addresses to the channels and implement them correspondingly.
+  NS_LOG_INFO ("Assign IP Addresses.");
+  Ipv4AddressHelper address;
+  address.SetBase ("10.1.1.0", "255.255.255.0");
+  NetDeviceContainer devices;
+  // p2p1
+  devices.Add(p2p1.Install(nodes.Get(0), nodes.Get(5)));
+  devices.Add(p2p1.Install(nodes.Get(1), nodes.Get(5))); 
+  devices.Add(p2p1.Install(nodes.Get(2), nodes.Get(5))); 
+  devices.Add(p2p1.Install(nodes.Get(3), nodes.Get(5))); 
+  devices.Add(p2p1.Install(nodes.Get(4), nodes.Get(5))); 
+  // p2p2
+  devices.Add(p2p2.Install(nodes.Get(5), nodes.Get(6)));
+  devices.Add(p2p2.Install(nodes.Get(5), nodes.Get(7)));
+  // p2p3
+  devices.Add(p2p3.Install(nodes.Get(6), nodes.Get(7)));
+  Ipv4InterfaceContainer interfaces = address.Assign(devices);
+
+
+  uint16_t port_number = 9;
+  UdpServerHelper server(port_number);
+
+  // Create an application container for the servers
+  ApplicationContainer serverApps;
+  serverApps.Add(server.Install(nodes.Get(7)));//Controller
+  serverApps.Add(server.Install(nodes.Get(4)));// Actuator
+  serverApps.Start(Seconds(1.0));
+  serverApps.Stop(Seconds(10.0)); 
+
+  uint32_t max_packet_count = 320;
+  Time inter_packet_interval = Seconds (0.05);
+  uint32_t max_packet_size = 1024;
+  UdpClientHelper client1(interfaces.GetAddress(13), port_number);
+  client1.SetAttribute("MaxPackets", UintegerValue(max_packet_count));
+  client1.SetAttribute("Interval", TimeValue(inter_packet_interval));
+  client1.SetAttribute("PacketSize", UintegerValue(max_packet_size));
+
+  UdpClientHelper client2(interfaces.GetAddress(15), port_number);
+  client2.SetAttribute("MaxPackets", UintegerValue(max_packet_count));
+  client2.SetAttribute("Interval", TimeValue(inter_packet_interval));
+  client2.SetAttribute("PacketSize", UintegerValue(max_packet_size));
+/*
+  UdpEchoClientHelper echoClient(interfaces.GetAddress(15), port_number);
+  echoClient.SetAttribute("MaxPackets", UintegerValue(1));
+  echoClient.SetAttribute("Interval", TimeValue(Seconds(1.0)));
+  echoClient.SetAttribute("PacketSize", UintegerValue(1024));
+*/
+  //Install Client
+  ApplicationContainer clientApps;
+  clientApps.Add(server.Install(nodes.Get(0)));
+  clientApps.Add(server.Install(nodes.Get(1)));
+  clientApps.Add(server.Install(nodes.Get(2)));
+  clientApps.Add(server.Install(nodes.Get(3)));
+  clientApps.Start(Seconds(2.0));
+  clientApps.Stop(Seconds(10.0));
 
   // Setting global routing.
   NS_LOG_INFO ("Enabling Global Routing.");
   Ipv4GlobalRoutingHelper::PopulateRoutingTables ();  
 
-  // Create channels for sensors and actuator.
-  NS_LOG_INFO ("Create channels to all devices.");
-  PointToPointHelper p2p;
-
-  // Between sensors A B C D and gateway G.
-  p2p.SetDeviceAttribute ("DataRate", StringValue ("250kbps"));
-  p2p.SetChannelAttribute ("Delay", StringValue ("20ms"));
-  NetDeviceContainer net_dev_AG = p2p.Install (n_AG);
-  NetDeviceContainer net_dev_BG = p2p.Install (n_BG);
-  NetDeviceContainer net_dev_CG = p2p.Install (n_CG);
-  NetDeviceContainer net_dev_DG = p2p.Install (n_DG);
-
-  // Between actuator E and gateway G.
-  p2p.SetDeviceAttribute ("DataRate", StringValue ("250kbps"));
-  p2p.SetChannelAttribute ("Delay", StringValue ("20ms"));
-  NetDeviceContainer net_dev_EG = p2p.Install (n_EG);
-
-  // Add Internet stack helper to make use of IP addresses.
-  InternetStackHelper internet;
-  internet.Install (n_container);
-  
-  // Assign IP addresses to the channels and implement them correspondingly.
-  NS_LOG_INFO ("Assign IP Addresses.");
-  Ipv4AddressHelper ipv4;
-  ipv4.SetBase ("10.1.1.0", "255.255.255.0");
-  Ipv4InterfaceContainer interface_container_AG = ipv4.Assign (net_dev_AG);
-  ipv4.SetBase ("10.1.2.0", "255.255.255.0");
-  Ipv4InterfaceContainer interface_container_BG = ipv4.Assign (net_dev_BG);
-  ipv4.SetBase ("10.1.3.0", "255.255.255.0");
-  Ipv4InterfaceContainer interface_container_CG = ipv4.Assign (net_dev_CG);
-  ipv4.SetBase ("10.1.4.0", "255.255.255.0");
-  Ipv4InterfaceContainer interface_container_DG = ipv4.Assign (net_dev_DG);
-  ipv4.SetBase ("10.1.5.0", "255.255.255.0");
-  Ipv4InterfaceContainer interface_container_EG = ipv4.Assign (net_dev_EG);
-  
-  // Create the OnOff application to send UDP datagrams of size 210 bytes at a rate of 250kbps 
-  // from A to G, B to G, C to G, D to G and E to G.
-  NS_LOG_INFO ("Create UDP Applications.");
-  uint16_t port = 9;
-  
-  // Packets from sensors
-  OnOffHelper onoff_AG("ns3::UdpSocketFactory", InetSocketAddress (interface_container_AG.GetAddress(1), port));
-  onoff_AG.SetConstantRate (DataRate ("250kbps"));
-  OnOffHelper onoff_BG("ns3::UdpSocketFactory", InetSocketAddress (interface_container_BG.GetAddress(1), port));
-  onoff_BG.SetConstantRate (DataRate ("250kbps"));
-  OnOffHelper onoff_CG("ns3::UdpSocketFactory", InetSocketAddress (interface_container_CG.GetAddress(1), port));
-  onoff_CG.SetConstantRate (DataRate ("250kbps"));
-  OnOffHelper onoff_DG("ns3::UdpSocketFactory", InetSocketAddress (interface_container_DG.GetAddress(1), port));
-  onoff_DG.SetConstantRate (DataRate ("250kbps"));
-  
-  ApplicationContainer onOffApp_A = onoff_AG.Install (n_container.Get(0));
-  onOffApp_A.Start(Seconds (10.0));
-  onOffApp_A.Stop(Seconds (20.0));
-  ApplicationContainer onOffApp_B = onoff_AG.Install (n_container.Get(1));
-  onOffApp_B.Start(Seconds (10.0));
-  onOffApp_B.Stop(Seconds (20.0));
-  ApplicationContainer onOffApp_C = onoff_AG.Install (n_container.Get(2));
-  onOffApp_C.Start(Seconds (10.0));
-  onOffApp_C.Stop(Seconds (20.0));
-  ApplicationContainer onOffApp_D = onoff_AG.Install (n_container.Get(3));
-  onOffApp_D.Start(Seconds (10.0));
-  onOffApp_D.Stop(Seconds (20.0));
-  
-  // Create packet sinks to receive these packets
-  PacketSinkHelper sink("ns3::UdpSocketFactory", InetSocketAddress (Ipv4Address::GetAny(), port));
-  NodeContainer sinks = NodeContainer(n_container.Get(5), n_container.Get(1)); // ej klar!
-  ApplicationContainer sinkApps = sink.Install (sinks);
-  sinkApps.Start (Seconds (0.0));
-  sinkApps.Stop (Seconds (21.0));
-  
-  // Set tracing functionalities.
   if(tracing){
     AsciiTraceHelper ascii;
-    p2p.EnableAsciiAll (ascii.CreateFileStream ("project_part3.tr"));
-    p2p.EnablePcapAll ("project_part3", false);
+    p2p1.EnableAsciiAll (ascii.CreateFileStream ("project_part3_p2p1.tr"));
+    p2p2.EnableAsciiAll (ascii.CreateFileStream ("project_part3_p2p2.tr"));
+    p2p3.EnableAsciiAll (ascii.CreateFileStream ("project_part3_p2p3.tr"));
+    p2p1.EnablePcapAll ("project_part3_p2p1");
+    p2p2.EnablePcapAll ("project_part3_p2p2");
+    p2p3.EnablePcapAll ("project_part3_p2p3");
   }
+
+  
+  AnimationInterface anim ("project_part3_anim.xml");
+  anim.EnablePacketMetadata (true);
+  anim.EnableIpv4RouteTracking ("project_part3_route_anim.xml", Seconds(0), Seconds(5), Seconds(0.25));
+  anim.SetConstantPosition (nodes.Get(0), 10, 60);
+  anim.SetConstantPosition (nodes.Get(1), 20, 60);
+  anim.SetConstantPosition (nodes.Get(2), 30, 60);
+  anim.SetConstantPosition (nodes.Get(3), 40, 60);
+  anim.SetConstantPosition (nodes.Get(4), 50, 60);
+  anim.SetConstantPosition (nodes.Get(5), 30, 30);
+  anim.SetConstantPosition (nodes.Get(6), 50, 10);
+  anim.SetConstantPosition (nodes.Get(7), 70, 30);
 
   // Run Simulation.
   NS_LOG_INFO ("Run Simulation.");
-  Simulator::Stop (Seconds (10.0));
   Simulator::Run ();
   Simulator::Destroy ();
   NS_LOG_INFO ("Done.");
