@@ -61,7 +61,7 @@ int main (int argc, char *argv[]){
   LogComponentEnable ("UdpClient", LOG_LEVEL_INFO);
   LogComponentEnable ("UdpServer", LOG_LEVEL_INFO);
 
-  bool tracing = true;
+  bool tracing = false;
   
   // Allow the user to override any of the defaults at run-time.
   CommandLine cmd;
@@ -79,11 +79,9 @@ int main (int argc, char *argv[]){
   PointToPointHelper p2p1;
   p2p1.SetDeviceAttribute ("DataRate", StringValue ("250kbps"));
   p2p1.SetChannelAttribute ("Delay", StringValue ("20ms"));
-
   PointToPointHelper p2p2;
   p2p2.SetDeviceAttribute ("DataRate", StringValue ("250kbps"));
   p2p2.SetChannelAttribute ("Delay", StringValue ("20ms"));
-
   PointToPointHelper p2p3;
   p2p3.SetDeviceAttribute ("DataRate", StringValue ("250kbps"));
   p2p3.SetChannelAttribute ("Delay", StringValue ("20ms"));
@@ -104,8 +102,8 @@ int main (int argc, char *argv[]){
   devices.Add(p2p2.Install(nodes.Get(5), nodes.Get(7)));
   // p2p3
   devices.Add(p2p3.Install(nodes.Get(6), nodes.Get(7)));
+  
   Ipv4InterfaceContainer interfaces = address.Assign(devices);
-
 
   uint16_t port_number = 9;
   UdpServerHelper server(port_number);
@@ -120,27 +118,17 @@ int main (int argc, char *argv[]){
   uint32_t max_packet_count = 320;
   Time inter_packet_interval = Seconds (0.05);
   uint32_t max_packet_size = 1024;
-  UdpClientHelper client1(interfaces.GetAddress(13), port_number);
-  client1.SetAttribute("MaxPackets", UintegerValue(max_packet_count));
-  client1.SetAttribute("Interval", TimeValue(inter_packet_interval));
-  client1.SetAttribute("PacketSize", UintegerValue(max_packet_size));
+  UdpClientHelper client(interfaces.GetAddress(1), port_number);
+  client.SetAttribute("MaxPackets", UintegerValue(max_packet_count));
+  client.SetAttribute("Interval", TimeValue(inter_packet_interval));
+  client.SetAttribute("PacketSize", UintegerValue(max_packet_size));
 
-  UdpClientHelper client2(interfaces.GetAddress(15), port_number);
-  client2.SetAttribute("MaxPackets", UintegerValue(max_packet_count));
-  client2.SetAttribute("Interval", TimeValue(inter_packet_interval));
-  client2.SetAttribute("PacketSize", UintegerValue(max_packet_size));
-/*
-  UdpEchoClientHelper echoClient(interfaces.GetAddress(15), port_number);
-  echoClient.SetAttribute("MaxPackets", UintegerValue(1));
-  echoClient.SetAttribute("Interval", TimeValue(Seconds(1.0)));
-  echoClient.SetAttribute("PacketSize", UintegerValue(1024));
-*/
   //Install Client
   ApplicationContainer clientApps;
-  clientApps.Add(server.Install(nodes.Get(0)));
-  clientApps.Add(server.Install(nodes.Get(1)));
-  clientApps.Add(server.Install(nodes.Get(2)));
-  clientApps.Add(server.Install(nodes.Get(3)));
+  clientApps.Add(client.Install(nodes.Get(0)));
+  clientApps.Add(client.Install(nodes.Get(1)));
+  clientApps.Add(client.Install(nodes.Get(2)));
+  clientApps.Add(client.Install(nodes.Get(3)));
   clientApps.Start(Seconds(2.0));
   clientApps.Stop(Seconds(10.0));
 
