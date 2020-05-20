@@ -13,12 +13,12 @@
 #include <numeric>
 
 double factorial(int n);
-void poissonDist(std::vector<long double> rand, int lambda, int size);
+void poissonDist(int lambda, int size);
 void expDist();
 template<class T, int seed, int m, int a, int c> void LCG();
 
 std::ofstream LCGfile, UVfile;
-std::vector<long double> values;
+std::vector<long double> LCG_rand;
 
 int main (int argc, char *argv[]){
 
@@ -33,7 +33,7 @@ int main (int argc, char *argv[]){
   LCGfile.close();
 
   /*****Poisson distribution*****/
-  poissonDist(values, 4, 10);
+  poissonDist(4, 10);
 
   /*****UniformRandomVariable using ns3*****/
   /*UVfile.open("outputUV.txt");
@@ -61,7 +61,7 @@ double factorial(int n)
         return 1;
 }
 
-void poissonDist(std::vector<long double> rand, int lambda, int size){
+void poissonDist(int lambda, int size){
   //std::linear_congruential_engine<std::uint_fast32_t, 500, 3, 0> generator(1);
   std::vector<double> poisson, tr;
   std::vector<double> poissonEmp(size-1, 0.0);
@@ -78,9 +78,9 @@ void poissonDist(std::vector<long double> rand, int lambda, int size){
   }
   //for (auto i = tr.begin(); i != tr.end(); ++i) std::cout << *i << ' ';
 
-  for(int i=0; i<rand.size(); i++){
+  for(int i=0; i<LCG_rand.size(); i++){
     for(int j=0; j<size-1; j++){
-      if(rand[i]<tr[j]){
+      if(LCG_rand[i]<tr[j]){
         poissonEmp[j]++;
         break;
       }
@@ -88,7 +88,7 @@ void poissonDist(std::vector<long double> rand, int lambda, int size){
   }
 
   for (int i=0; i<size-2; i++){
-    poissonEmp[i]= poissonEmp[i]/rand.size();
+    poissonEmp[i]= poissonEmp[i]/LCG_rand.size();
   }
   std::cout << "POISSON:\n";
 
@@ -135,20 +135,20 @@ void LCG(){
     //long double X = double(E())/E.max();
 
     long double X = ((seed*a) + c)%m;
-    //std::vector<long double> values;
-    values.push_back(X);
+    //std::vector<long double> LCG_rand;
+    LCG_rand.push_back(X);
 
     for(int i=0; i<100; i++){
       //X = double(E())/E.max();
-      X = (((int)values[i]*a) + c)%m;
-      values.push_back(X);
+      X = (((int)LCG_rand[i]*a) + c)%m;
+      LCG_rand.push_back(X);
       //std::cout << std::setprecision(10); //<< X << "\n";
       //LCGfile << std::setprecision(10)<< X << "\n"; //"\t"<< i<<
     }
 
-    std::transform(values.begin(), values.end(), values.begin(), [](long double& y){return y/m;});
+    std::transform(LCG_rand.begin(), LCG_rand.end(), LCG_rand.begin(), [](long double& y){return y/m;});
 
-    for (auto i = values.begin(); i != values.end(); ++i){
+    for (auto i = LCG_rand.begin(); i != LCG_rand.end(); ++i){
       //std::cout << *i << ' ';
       LCGfile << *i << "\n";
     }
