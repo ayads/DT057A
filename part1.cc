@@ -17,7 +17,7 @@ void poissonDist(int lambda, int size);
 void expDist(int lambda);
 template<class T, int seed, int m, int a, int c> void LCG();
 
-std::ofstream LCGfile, UVfile;
+std::ofstream LCGfile, UVfile, EXPfile, EXP_NS3file, POISSONfile;
 std::vector<long double> LCG_rand, exp_rand;
 
 int main (int argc, char *argv[]){
@@ -30,10 +30,14 @@ int main (int argc, char *argv[]){
   LCGfile.close();
 
   /*****Exponential distribution*****/
+  EXPfile.open("outputEXP.txt");
   expDist(1);
+  EXPfile.close();
 
   /*****Poisson distribution*****/
+  POISSONfile.open("outputPOISSON.txt");
   poissonDist(4, 10);
+  POISSONfile.close();
 
   /*****UniformRandomVariable using ns3*****/
   UVfile.open("outputUV.txt");
@@ -44,11 +48,14 @@ int main (int argc, char *argv[]){
   UVfile.close();
 
   /*****ExponentialRandomVariable using ns3*****/
+  EXP_NS3file.open("outputNS3EXP.txt");
   ns3::Ptr<ns3::ExponentialRandomVariable> ERV = ns3::CreateObject<ns3::ExponentialRandomVariable> ();
-  std::cout << "NS3 EXP:\n";
-  for(int i=0; i<8; i++){
-    std::cout << std::setprecision(10) << ERV ->GetValue() << " "; //<< "\t" << i
+  //std::cout << "NS3 EXP:\n";
+  ERV->SetAttribute ("Bound", ns3::DoubleValue (1.0)); //[0,1.0] upper bound
+  for(int i=0; i<1000; i++){
+    EXP_NS3file << ERV ->GetValue() << "\n"; //<< "\t" << i
   }
+  EXP_NS3file.close();
   std::cout<<"\n";
   return 0;
 }
@@ -85,25 +92,21 @@ void poissonDist(int lambda, int size){
   }
 
   for (int i=0; i<size-1; i++){
-    poissonEmp[i]= poissonEmp[i]/LCG_rand.size();
+    poissonEmp[i]= poissonEmp[i]/exp_rand.size();
   }
 
-  std::cout << "POISSON:\n";
-  for (auto i = poissonEmp.begin(); i != poissonEmp.end(); ++i) std::cout << *i << ' ';
-  std::cout << "\n\n";
-
+  for (auto i = poissonEmp.begin(); i != poissonEmp.end(); ++i) POISSONfile << *i << '\n';
 }
 
 void expDist(int lambda){
 
-  for (int i = 0; i < 100; ++i) {
+  for (int i = 0; i < 1000; ++i) {
       exp_rand.push_back(lambda*exp((-lambda)*LCG_rand[i]));
   }
 
-  for (auto i = exp_rand.begin(); i != exp_rand.end(); ++i) std::cout << *i << "\n";
+  for (auto i = exp_rand.begin(); i != exp_rand.end(); ++i) EXPfile << *i << "\n";
 
-
-  std::cout << std::endl;
+  //std::cout << "\n";
 }
 
 template<class T, int seed, int m, int a, int c>
