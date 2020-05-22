@@ -3,6 +3,7 @@
 #include "ns3/internet-module.h"
 #include "ns3/point-to-point-module.h"
 #include "ns3/applications-module.h"
+#include <iomanip>
 #include <random>
 #include <fstream>
 #include <map>
@@ -82,7 +83,7 @@ void poissonDist(int lambda, int size){
   }
   //for (auto i = tr.begin(); i != tr.end(); ++i) std::cout << *i << ' ';
 
-  for(int i=0; i<LCG_rand.size(); i++){
+  for(unsigned int i=0; i<LCG_rand.size(); i++){
     for(int j=0; j<size; j++){
       if(exp_rand[i]<tr[j]){
         poissonEmp[j]++;

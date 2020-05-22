@@ -28,34 +28,25 @@ using namespace ns3;
 
 NS_LOG_COMPONENT_DEFINE ("project_Part3");
 
-/*
-void ReceivePacket (Ptr<Socket> socket)
+static void received_sensor_msg (Ptr<const Packet> p)
 {
-  NS_LOG_INFO ("Received one packet!");
-  Ptr<Packet> packet = socket->Recv ();
-  SocketIpTosTag tosTag;
-  if (packet->RemovePacketTag (tosTag))
-  {
-    NS_LOG_INFO (" TOS = " << (uint32_t)tosTag.GetTos ());
-  }
-  SocketIpTtlTag ttlTag;
-  if (packet->RemovePacketTag (ttlTag))
-  {
-    NS_LOG_INFO (" TTL = " << (uint32_t)ttlTag.GetTtl ());
-  }
+	std::cout << "::::: A packet correctly received_sensor_msg at the server! Time:   " << Simulator::Now ().GetSeconds () << std::endl;
 }
 
-static void SendPacket (Ptr<Socket> socket, uint32_t pktSize, uint32_t pktCount, Time pktInterval )
+static void received_gateway_msg (Ptr<const Packet> p)
 {
-  if (pktCount > 0){
-    socket->Send (Create<Packet> (pktSize));
-    Simulator::Schedule (pktInterval, &SendPacket, socket, pktSize, pktCount - 1, pktInterval);
-  }
-  else {
-    socket->Close ();
-  }
+	std::cout << "::::: A packet correctly received_gateway_msg at the server! Time:   " << Simulator::Now ().GetSeconds () << std::endl;
 }
-*/
+
+static void received_controller_msg (Ptr<const Packet> p)
+{
+	std::cout << "::::: A packet correctly received_controller_msg at the server! Time:   " << Simulator::Now ().GetSeconds () << std::endl;
+}
+
+static void received_k_msg (Ptr<const Packet> p)
+{
+	std::cout << "::::: A packet correctly received_gateway_msg at the server! Time:   " << Simulator::Now ().GetSeconds () << std::endl;
+}
 
 int main (int argc, char *argv[]){
   
@@ -82,35 +73,57 @@ int main (int argc, char *argv[]){
   internet.Install (nodes);
 
   // Create point to point channels
-  PointToPointHelper p2p1;
-  p2p1.SetDeviceAttribute ("DataRate", StringValue ("250kbps"));
-  p2p1.SetChannelAttribute ("Delay", StringValue ("20ms"));
-  PointToPointHelper p2p2;
-  p2p2.SetDeviceAttribute ("DataRate", StringValue ("250kbps"));
-  p2p2.SetChannelAttribute ("Delay", StringValue ("20ms"));
-  PointToPointHelper p2p3;
-  p2p3.SetDeviceAttribute ("DataRate", StringValue ("250kbps"));
-  p2p3.SetChannelAttribute ("Delay", StringValue ("20ms"));
+  PointToPointHelper p2p_a;
+  p2p_a.SetDeviceAttribute ("DataRate", StringValue ("250kbps"));
+  p2p_a.SetChannelAttribute ("Delay", StringValue ("20ms"));
+  
+  PointToPointHelper p2p_b;
+  p2p_b.SetDeviceAttribute ("DataRate", StringValue ("250kbps"));
+  p2p_b.SetChannelAttribute ("Delay", StringValue ("20ms"));
+  
+  PointToPointHelper p2p_c;
+  p2p_c.SetDeviceAttribute ("DataRate", StringValue ("250kbps"));
+  p2p_c.SetChannelAttribute ("Delay", StringValue ("20ms"));
+  
+  PointToPointHelper p2p_d;
+  p2p_d.SetDeviceAttribute ("DataRate", StringValue ("250kbps"));
+  p2p_d.SetChannelAttribute ("Delay", StringValue ("20ms"));
+  
+  PointToPointHelper p2p_e;
+  p2p_e.SetDeviceAttribute ("DataRate", StringValue ("250kbps"));
+  p2p_e.SetChannelAttribute ("Delay", StringValue ("20ms"));
+
+  PointToPointHelper p2p_k1;
+  p2p_k1.SetDeviceAttribute ("DataRate", StringValue ("250kbps"));
+  p2p_k1.SetChannelAttribute ("Delay", StringValue ("20ms"));
+
+  PointToPointHelper p2p_k2;
+  p2p_k2.SetDeviceAttribute ("DataRate", StringValue ("250kbps"));
+  p2p_k2.SetChannelAttribute ("Delay", StringValue ("20ms"));
+
+  PointToPointHelper p2p_controller;
+  p2p_controller.SetDeviceAttribute ("DataRate", StringValue ("250kbps"));
+  p2p_controller.SetChannelAttribute ("Delay", StringValue ("20ms"));
 
   // Sensors
   NetDeviceContainer sensors;
-  sensors.Add(p2p1.Install(nodes.Get(0), nodes.Get(5)));
-  sensors.Add(p2p1.Install(nodes.Get(1), nodes.Get(5))); 
-  sensors.Add(p2p1.Install(nodes.Get(2), nodes.Get(5))); 
-  sensors.Add(p2p1.Install(nodes.Get(3), nodes.Get(5))); 
+  sensors.Add(p2p_a.Install(nodes.Get(0), nodes.Get(5)));
+  sensors.Add(p2p_b.Install(nodes.Get(1), nodes.Get(5))); 
+  sensors.Add(p2p_c.Install(nodes.Get(2), nodes.Get(5))); 
+  sensors.Add(p2p_d.Install(nodes.Get(3), nodes.Get(5)));
   
   // Actuator
   NetDeviceContainer actuator;
-  actuator.Add(p2p1.Install(nodes.Get(4), nodes.Get(5)));
+  actuator.Add(p2p_e.Install(nodes.Get(4), nodes.Get(5)));
   
   // k
   NetDeviceContainer k;
-  k.Add(p2p2.Install(nodes.Get(5), nodes.Get(6)));
-  k.Add(p2p2.Install(nodes.Get(6), nodes.Get(7)));
+  k.Add(p2p_k1.Install(nodes.Get(5), nodes.Get(6)));
+  k.Add(p2p_k2.Install(nodes.Get(6), nodes.Get(7)));
   
   // Controller
   NetDeviceContainer controller;
-  controller.Add(p2p3.Install(nodes.Get(5), nodes.Get(7)));
+  controller.Add(p2p_controller.Install(nodes.Get(5), nodes.Get(7)));
   
   // Assign IP addresses to the channels and implement them correspondingly.
   NS_LOG_INFO ("Assign IP Addresses.");
@@ -122,21 +135,43 @@ int main (int argc, char *argv[]){
   Ipv4InterfaceContainer interfaces_controller = address.Assign(controller);// size 2
 
   uint16_t port_number = 9;
-  UdpServerHelper server(port_number);
-
+  UdpServerHelper gateway_server_1(port_number);
+  UdpServerHelper k_server(port_number);
+  UdpServerHelper controller_server_1(port_number);
+  UdpServerHelper controller_server_2(port_number + 1);
+  UdpServerHelper gateway_server_2(port_number + 1);
+  UdpServerHelper actuator_server(port_number);
   // Create an application container for the servers
-  ApplicationContainer serverApps;
-  //serverApps.Add(server.Install(nodes.Get(5)));// Gateway
-  serverApps.Add(server.Install(nodes.Get(7)));//Controller
-  serverApps.Add(server.Install(nodes.Get(4)));// Actuator
-  serverApps.Start(Seconds(1.0));
-  serverApps.Stop(Seconds(10.0));
+  ApplicationContainer server_apps;
+  server_apps.Add(gateway_server_1.Install(nodes.Get(5)));
+  Ptr<UdpServer> S1 = gateway_server_1.GetServer();
+  S1->TraceConnectWithoutContext ("Rx", MakeCallback (&received_sensor_msg));
+
+  server_apps.Add(k_server.Install(nodes.Get(6)));
+  Ptr<UdpServer> S2 = k_server.GetServer();
+  S2->TraceConnectWithoutContext ("Rx", MakeCallback (&received_gateway_msg));
+
+  server_apps.Add(controller_server_1.Install(nodes.Get(7)));
+  Ptr<UdpServer> S3 = controller_server_1.GetServer();
+  S3->TraceConnectWithoutContext ("Rx", MakeCallback (&received_k_msg));
+  
+  server_apps.Add(controller_server_2.Install(nodes.Get(7)));
+  Ptr<UdpServer> S4 = controller_server_2.GetServer();
+  S4->TraceConnectWithoutContext ("Rx", MakeCallback (&received_gateway_msg));
+
+  server_apps.Add(gateway_server_2.Install(nodes.Get(5)));
+  Ptr<UdpServer> S5 = gateway_server_2.GetServer();
+  S5->TraceConnectWithoutContext ("Rx", MakeCallback (&received_controller_msg));
+
+  server_apps.Add(actuator_server.Install(nodes.Get(4)));
+  server_apps.Start(Seconds(1.0));
+  server_apps.Stop(Seconds(10.0));
 
   uint32_t max_packet_count = 10;
   Time inter_packet_interval = Seconds (0.05);
   uint32_t max_packet_size = 1024;
 
-  UdpClientHelper client_sensors(interfaces_sensors.GetAddress(1), port_number);
+  UdpClientHelper client_sensors(interfaces_sensors.GetAddress(1), port_number); //(server address, server port)
   client_sensors.SetAttribute("MaxPackets", UintegerValue(max_packet_count)); 
   client_sensors.SetAttribute("Interval", TimeValue(inter_packet_interval));
   client_sensors.SetAttribute("PacketSize", UintegerValue(max_packet_size));
@@ -156,95 +191,38 @@ int main (int argc, char *argv[]){
   client_controller.SetAttribute("Interval", TimeValue(inter_packet_interval));
   client_controller.SetAttribute("PacketSize", UintegerValue(max_packet_size));
 
-  //Install Client
-  ApplicationContainer clientApps;
-  clientApps.Add(client_sensors.Install(nodes.Get(0)));
-  clientApps.Add(client_sensors.Install(nodes.Get(1)));
-  clientApps.Add(client_sensors.Install(nodes.Get(2)));
-  clientApps.Add(client_sensors.Install(nodes.Get(3)));
-  clientApps.Start(Seconds(2.0));
-  clientApps.Stop(Seconds(10.0));
-
-
-  /*
-  //Socket options for IPv4, currently TOS, TTL, RECVTOS, and RECVTTL
-  uint32_t ipTos = 0; 
-  bool ipRecvTos = true; 
-  uint32_t ipTtl = 0; 
-  bool ipRecvTtl = true;
+  //Install clients that will send UDP packets
+  ApplicationContainer client_apps;
+  client_apps.Add(client_sensors.Install(nodes.Get(0))); // a
+  client_apps.Add(client_sensors.Install(nodes.Get(1))); // b
+  client_apps.Add(client_sensors.Install(nodes.Get(2))); // c
+  client_apps.Add(client_sensors.Install(nodes.Get(3))); // d
+  client_apps.Add(client_controller.Install(nodes.Get(5))); // controller
+  client_apps.Add(client_k.Install(nodes.Get(6))); // k
+  client_apps.Start(Seconds(2.0));
+  client_apps.Stop(Seconds(10.0));
   
-  NS_LOG_INFO ("Create sockets.");
-  //Receiver socket on n1
-  TypeId t_id = TypeId::LookupByName ("ns3::UdpSocketFactory");
-  Ptr<Socket> recvSink = Socket::CreateSocket (nodes.Get (1), t_id);
-  InetSocketAddress local = InetSocketAddress (Ipv4Address::GetAny (), port_number);
-  recvSink->SetIpRecvTos (ipRecvTos);
-  recvSink->SetIpRecvTtl (ipRecvTtl);
-  recvSink->Bind (local);
-  recvSink->SetRecvCallback (MakeCallback (&ReceivePacket));
-
-  //Sender socket on n0
-  Ptr<Socket> source_a = Socket::CreateSocket (nodes.Get (0), t_id);
-  InetSocketAddress remote_a = InetSocketAddress (interfaces_devices.GetAddress (0), port_number);
-
-  Ptr<Socket> source_b = Socket::CreateSocket (nodes.Get (1), t_id);
-  InetSocketAddress remote_b = InetSocketAddress (interfaces_devices.GetAddress (1), port_number);
-
-  Ptr<Socket> source_c = Socket::CreateSocket (nodes.Get (2), t_id);
-  InetSocketAddress remote_c = InetSocketAddress (interfaces_devices.GetAddress (2), port_number);
-
-  Ptr<Socket> source_d = Socket::CreateSocket (nodes.Get (3), t_id);
-  InetSocketAddress remote_d = InetSocketAddress (interfaces_devices.GetAddress (3), port_number);
-  
-  //Set socket options, it is also possible to set the options after the socket has been created/connected.
-  if (ipTos > 0) 
-  {
-    source_a->SetIpTos (ipTos);
-    source_b->SetIpTos (ipTos);
-    source_c->SetIpTos (ipTos);
-    source_d->SetIpTos (ipTos);
-  }
-  
-  if (ipTtl > 0)
-  {
-    source_a->SetIpTtl (ipTtl);
-    source_b->SetIpTtl (ipTtl);
-    source_c->SetIpTtl (ipTtl);
-    source_d->SetIpTtl (ipTtl);
-  }
-  
-  source_a->Connect (remote_a);
-  source_b->Connect (remote_b);
-  source_c->Connect (remote_c);
-  source_d->Connect (remote_d);
-  
-  //Access IP addresses
-  ns3::Ptr<ns3::Ipv4> ipv4_a = nodes.Get(0)->GetObject<ns3::Ipv4> ();
-  ns3::Ipv4InterfaceAddress iaddr_a = ipv4_a->GetAddress (1,0); 
-  ns3::Ipv4Address ipAddr_a = iaddr_a.GetLocal ();
-
-  ns3::Ptr<ns3::Ipv4> ipv4_b = nodes.Get(1)->GetObject<ns3::Ipv4> ();
-  ns3::Ipv4InterfaceAddress iaddr_b = ipv4_b->GetAddress (1,0); 
-  ns3::Ipv4Address ipAddr_b = iaddr_b.GetLocal (); 
-
-  ns3::Ptr<ns3::Ipv4> ipv4_c = nodes.Get(2)->GetObject<ns3::Ipv4> ();
-  ns3::Ipv4InterfaceAddress iaddr_c = ipv4_c->GetAddress (1,0); 
-  ns3::Ipv4Address ipAddr_c = iaddr_c.GetLocal (); 
-
-  ns3::Ptr<ns3::Ipv4> ipv4_d = nodes.Get(3)->GetObject<ns3::Ipv4> ();
-  ns3::Ipv4InterfaceAddress iaddr_d = ipv4_d->GetAddress (1,0); 
-  ns3::Ipv4Address ipAddr_d = iaddr_d.GetLocal ();
-  */
-
   // Setup tracing files
   if(tracing){
+    //ascii tracer
     AsciiTraceHelper ascii;
-    p2p1.EnableAsciiAll (ascii.CreateFileStream ("project_part3_p2p1.tr"));
-    p2p2.EnableAsciiAll (ascii.CreateFileStream ("project_part3_p2p2.tr"));
-    p2p3.EnableAsciiAll (ascii.CreateFileStream ("project_part3_p2p3.tr"));
-    p2p1.EnablePcapAll ("project_part3_p2p1");
-    p2p2.EnablePcapAll ("project_part3_p2p2");
-    p2p3.EnablePcapAll ("project_part3_p2p3");
+    p2p_a.EnableAsciiAll (ascii.CreateFileStream ("project_part3_p2p1.tr"));
+    p2p_b.EnableAsciiAll (ascii.CreateFileStream ("project_part3_p2p2.tr"));
+    p2p_c.EnableAsciiAll (ascii.CreateFileStream ("project_part3_p2p3.tr"));
+    p2p_d.EnableAsciiAll (ascii.CreateFileStream ("project_part3_p2p1.tr"));
+    p2p_e.EnableAsciiAll (ascii.CreateFileStream ("project_part3_p2p2.tr"));
+    p2p_k1.EnableAsciiAll (ascii.CreateFileStream ("project_part3_p2p3.tr"));
+    p2p_k2.EnableAsciiAll (ascii.CreateFileStream ("project_part3_p2p2.tr"));
+    p2p_controller.EnableAsciiAll (ascii.CreateFileStream ("project_part3_p2p3.tr"));
+    // pcap
+    p2p_a.EnablePcapAll ("project_part3_p2p1");
+    p2p_b.EnablePcapAll ("project_part3_p2p2");
+    p2p_c.EnablePcapAll ("project_part3_p2p3");
+    p2p_d.EnablePcapAll ("project_part3_p2p1");
+    p2p_e.EnablePcapAll ("project_part3_p2p2");
+    p2p_k1.EnablePcapAll ("project_part3_p2p3");
+    p2p_k2.EnablePcapAll ("project_part3_p2p1");
+    p2p_controller.EnablePcapAll ("project_part3_p2p2");
   }
 
   // Animate the network.
@@ -263,6 +241,10 @@ int main (int argc, char *argv[]){
   // Run Simulation.
   NS_LOG_INFO ("Run Simulation.");
   Simulator::Run ();
+  
+  std::cout << ":::::::::::::::::::::::::::" << std::endl;
+  std::cout << "interface size = "<< interfaces_sensors.GetN()<< std::endl;
+  
   Simulator::Destroy ();
   NS_LOG_INFO ("Done.");
   return 0;
