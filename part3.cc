@@ -135,35 +135,36 @@ int main (int argc, char *argv[]){
   Ipv4InterfaceContainer interfaces_controller = address.Assign(controller);// size 2
 
   uint16_t port_number = 9;
-  UdpServerHelper gateway_server_1(port_number);
-  UdpServerHelper k_server(port_number);
-  UdpServerHelper controller_server_1(port_number);
-  UdpServerHelper controller_server_2(port_number + 1);
-  UdpServerHelper gateway_server_2(port_number + 1);
-  UdpServerHelper actuator_server(port_number);
+  UdpServerHelper server_gateway_1(port_number);
+  UdpServerHelper server_k(port_number);
+  UdpServerHelper server_controller_1(port_number);
+  UdpServerHelper server_controller_2(port_number + 1);
+  UdpServerHelper server_gateway_2(port_number + 1);
+  UdpServerHelper server_actuator(port_number);
+
   // Create an application container for the servers
   ApplicationContainer server_apps;
-  server_apps.Add(gateway_server_1.Install(nodes.Get(5)));
-  Ptr<UdpServer> S1 = gateway_server_1.GetServer();
+  server_apps.Add(server_gateway_1.Install(nodes.Get(5)));
+  Ptr<UdpServer> S1 = server_gateway_1.GetServer();
   S1->TraceConnectWithoutContext ("Rx", MakeCallback (&received_sensor_msg));
 
-  server_apps.Add(k_server.Install(nodes.Get(6)));
-  Ptr<UdpServer> S2 = k_server.GetServer();
+  server_apps.Add(server_k.Install(nodes.Get(6)));
+  Ptr<UdpServer> S2 = server_k.GetServer();
   S2->TraceConnectWithoutContext ("Rx", MakeCallback (&received_gateway_msg));
 
-  server_apps.Add(controller_server_1.Install(nodes.Get(7)));
-  Ptr<UdpServer> S3 = controller_server_1.GetServer();
+  server_apps.Add(server_controller_1.Install(nodes.Get(7)));
+  Ptr<UdpServer> S3 = server_controller_1.GetServer();
   S3->TraceConnectWithoutContext ("Rx", MakeCallback (&received_k_msg));
   
-  server_apps.Add(controller_server_2.Install(nodes.Get(7)));
-  Ptr<UdpServer> S4 = controller_server_2.GetServer();
+  server_apps.Add(server_controller_2.Install(nodes.Get(7)));
+  Ptr<UdpServer> S4 = server_controller_2.GetServer();
   S4->TraceConnectWithoutContext ("Rx", MakeCallback (&received_gateway_msg));
 
-  server_apps.Add(gateway_server_2.Install(nodes.Get(5)));
-  Ptr<UdpServer> S5 = gateway_server_2.GetServer();
+  server_apps.Add(server_gateway_2.Install(nodes.Get(5)));
+  Ptr<UdpServer> S5 = server_gateway_2.GetServer();
   S5->TraceConnectWithoutContext ("Rx", MakeCallback (&received_controller_msg));
 
-  server_apps.Add(actuator_server.Install(nodes.Get(4)));
+  server_apps.Add(server_actuator.Install(nodes.Get(4)));
   server_apps.Start(Seconds(1.0));
   server_apps.Stop(Seconds(10.0));
 
@@ -171,34 +172,47 @@ int main (int argc, char *argv[]){
   Time inter_packet_interval = Seconds (0.05);
   uint32_t max_packet_size = 1024;
 
-  UdpClientHelper client_sensors(interfaces_sensors.GetAddress(1), port_number); //(server address, server port)
-  client_sensors.SetAttribute("MaxPackets", UintegerValue(max_packet_count)); 
-  client_sensors.SetAttribute("Interval", TimeValue(inter_packet_interval));
-  client_sensors.SetAttribute("PacketSize", UintegerValue(max_packet_size));
+  UdpClientHelper client_sensors_to_gateway(interfaces_sensors.GetAddress(1), port_number); //(server address, server port)
+  client_sensors_to_gateway.SetAttribute("MaxPackets", UintegerValue(max_packet_count)); 
+  client_sensors_to_gateway.SetAttribute("Interval", TimeValue(inter_packet_interval));
+  client_sensors_to_gateway.SetAttribute("PacketSize", UintegerValue(max_packet_size));
 
-  UdpClientHelper client_actuator(interfaces_actuator.GetAddress(0), port_number);
-  client_actuator.SetAttribute("MaxPackets", UintegerValue(max_packet_count));
-  client_actuator.SetAttribute("Interval", TimeValue(inter_packet_interval));
-  client_actuator.SetAttribute("PacketSize", UintegerValue(max_packet_size));
+  UdpClientHelper client_gateway_to_k(interfaces_k.GetAddress(0), port_number);
+  client_gateway_to_k.SetAttribute("MaxPackets", UintegerValue(max_packet_count)); 
+  client_gateway_to_k.SetAttribute("Interval", TimeValue(inter_packet_interval));
+  client_gateway_to_k.SetAttribute("PacketSize", UintegerValue(max_packet_size));
 
-  UdpClientHelper client_k(interfaces_k.GetAddress(1), port_number); 
-  client_k.SetAttribute("MaxPackets", UintegerValue(max_packet_count));
-  client_k.SetAttribute("Interval", TimeValue(inter_packet_interval));
-  client_k.SetAttribute("PacketSize", UintegerValue(max_packet_size));
+  UdpClientHelper client_gateway_to_controller(interfaces_controller.GetAddress(0), port_number);
+  client_gateway_to_controller.SetAttribute("MaxPackets", UintegerValue(max_packet_count)); 
+  client_gateway_to_controller.SetAttribute("Interval", TimeValue(inter_packet_interval));
+  client_gateway_to_controller.SetAttribute("PacketSize", UintegerValue(max_packet_size));
 
-  UdpClientHelper client_controller(interfaces_controller.GetAddress(1), port_number); // size 2
-  client_controller.SetAttribute("MaxPackets", UintegerValue(max_packet_count));
-  client_controller.SetAttribute("Interval", TimeValue(inter_packet_interval));
-  client_controller.SetAttribute("PacketSize", UintegerValue(max_packet_size));
+  UdpClientHelper client_gateway_to_actuator(interfaces_actuator.GetAddress(0), port_number);
+  client_gateway_to_actuator.SetAttribute("MaxPackets", UintegerValue(max_packet_count)); 
+  client_gateway_to_actuator.SetAttribute("Interval", TimeValue(inter_packet_interval));
+  client_gateway_to_actuator.SetAttribute("PacketSize", UintegerValue(max_packet_size));
+
+  UdpClientHelper client_k_to_controller(interfaces_controller.GetAddress(1), port_number + 1); 
+  client_k_to_controller.SetAttribute("MaxPackets", UintegerValue(max_packet_count));
+  client_k_to_controller.SetAttribute("Interval", TimeValue(inter_packet_interval));
+  client_k_to_controller.SetAttribute("PacketSize", UintegerValue(max_packet_size));
+
+  UdpClientHelper client_controller_to_gateway(interfaces_sensors.GetAddress(1), port_number + 1);
+  client_controller_to_gateway.SetAttribute("MaxPackets", UintegerValue(max_packet_count));
+  client_controller_to_gateway.SetAttribute("Interval", TimeValue(inter_packet_interval));
+  client_controller_to_gateway.SetAttribute("PacketSize", UintegerValue(max_packet_size));
 
   //Install clients that will send UDP packets
   ApplicationContainer client_apps;
-  client_apps.Add(client_sensors.Install(nodes.Get(0))); // a
-  client_apps.Add(client_sensors.Install(nodes.Get(1))); // b
-  client_apps.Add(client_sensors.Install(nodes.Get(2))); // c
-  client_apps.Add(client_sensors.Install(nodes.Get(3))); // d
-  client_apps.Add(client_controller.Install(nodes.Get(5))); // controller
-  client_apps.Add(client_k.Install(nodes.Get(6))); // k
+  client_apps.Add(client_sensors_to_gateway.Install(nodes.Get(0))); // a
+  client_apps.Add(client_sensors_to_gateway.Install(nodes.Get(1))); // b
+  client_apps.Add(client_sensors_to_gateway.Install(nodes.Get(2))); // c
+  client_apps.Add(client_sensors_to_gateway.Install(nodes.Get(3))); // d
+  client_apps.Add(client_gateway_to_k.Install(nodes.Get(5)));
+  client_apps.Add(client_gateway_to_controller.Install(nodes.Get(5)));
+  client_apps.Add(client_gateway_to_actuator.Install(nodes.Get(5)));
+  client_apps.Add(client_controller_to_gateway.Install(nodes.Get(7)));
+  client_apps.Add(client_k_to_controller.Install(nodes.Get(6)));
   client_apps.Start(Seconds(2.0));
   client_apps.Stop(Seconds(10.0));
   
