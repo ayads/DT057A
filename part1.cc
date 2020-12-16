@@ -11,29 +11,33 @@
 #include <functional>
 #include <math.h>
 #include <numeric>
+#include <cassert>
+#include <cmath>
+
 
 double factorial(int n);
 void poissonDist(std::vector<long double> rand, int lambda, int size);
+void inverseTransform(double lambda);
 void expDist();
 template<class T, int seed, int m, int a, int c> void LCG();
 
 std::ofstream LCGfile, UVfile;
-std::vector<long double> values;
+std::vector<long double> lcgvalues;
 
 int main (int argc, char *argv[]){
-
-  /*****Exponential distribution*****/
-  //expDist();
-
   /*****Linear congurental engine implementation *****/
   LCGfile.open("outputLCG.txt");
-  //seed,m,a,c
-  //seed,a,c < m
-  LCG<std::uint_fast32_t, 1, 500, 3, 0>();
+  LCG<std::uint_fast32_t, 1, 500, 3, 0>();      //seed,m,a,c ::::: seed,a,c < m
   LCGfile.close();
 
+  /*****Exponential distribution*****/
+  expDist();
+
+  /*****inverse transform method*****/
+  inverseTransform(1.0);
+
   /*****Poisson distribution*****/
-  poissonDist(values, 4, 10);
+  poissonDist(lcgvalues, 4, 10);
 
   /*****UniformRandomVariable using ns3*****/
   /*UVfile.open("outputUV.txt");
@@ -102,56 +106,76 @@ void poissonDist(std::vector<long double> rand, int lambda, int size){
   std::cout << std::endl;*/
 }
 
+//Inverse transform method using implemented LCG function values
+void inverseTransform(double lambda){
+  std::vector<double> exponentialvalues;
+
+  for(int j= 0; j < 10; j++){
+    double uniformValue = 1-lcgvalues[j];
+    exponentialvalues.push_back(-(log(uniformValue))/lambda);
+  }
+
+  std::cout << "\nInverse transformed values: \n";
+  for(int i=0; i< exponentialvalues.size(); i++){
+    std::cout << exponentialvalues[i] << "\n";
+  }
+}
+
+
 void expDist(){
   std::linear_congruential_engine<std::uint_fast32_t, 500, 3, 0> gen(1);
 
   std::exponential_distribution<> distr(1.0);
-  //std::cout <<std::setprecision(5) << distribution.lambda() << "\n";
-  std::cout << std::endl;
-  std::cout << "min() == " << distr.min() << std::endl;
-  std::cout << "max() == " << distr.max() << std::endl;
-  std::cout << "lambda() == " << std::fixed << std::setw(11) << std::setprecision(10) << distr.lambda() << std::endl;
 
-  // generate the distribution as a histogram
+  //Prints some exponential distribution values
+  //std::cout << std::endl;
+  //std::cout << "min() == " << distr.min() << std::endl;
+  //std::cout << "max() == " << distr.max() << std::endl;
+  //std::cout << "lambda() == " << std::fixed << std::setw(11) << std::setprecision(10) << distr.lambda() << std::endl;
+
+  // generates the distribution as a histogram
   std::map<double, int> histogram;
   for (int i = 0; i < 10; ++i) {
       ++histogram[distr(gen)];
   }
-
-  // print results
+  //Print results
   std::cout << "Distribution for " << 10 << " samples:" << std::endl;
   int counter = 0;
   for (const auto& elem : histogram) {
       std::cout << std::fixed << std::setw(11) << ++counter << ": "
           << std::setw(14) << std::setprecision(10) << elem.first << std::endl;
   }
+
   std::cout << std::endl;
 }
 
 template<class T, int seed, int m, int a, int c>
 void LCG(){
-    //value = (seed*a+c)mod m
+    //lcgvalue = (seed*a+c)mod m
     //std::linear_congruential_engine<T, m, a, c> E(seed);
     //long double X = double(E())/E.max();
 
     long double X = ((seed*a) + c)%m;
-    //std::vector<long double> values;
-    values.push_back(X);
+    //std::vector<long double> lcgvalues;
+    lcgvalues.push_back(X);
 
     for(int i=0; i<100; i++){
-      //X = double(E())/E.max();
-      X = (((int)values[i]*a) + c)%m;
-      values.push_back(X);
+      //X = double(E())/E.max(); //Using c++ version
+      X = (((int)lcgvalues[i]*a) + c)%m;
+      lcgvalues.push_back(X);
       //std::cout << std::setprecision(10); //<< X << "\n";
+
+      //Prints values to file
       //LCGfile << std::setprecision(10)<< X << "\n"; //"\t"<< i<<
     }
 
-    std::transform(values.begin(), values.end(), values.begin(), [](long double& y){return y/m;});
+    std::transform(lcgvalues.begin(), lcgvalues.end(), lcgvalues.begin(), [](long double& y){return y/m;});
 
-    for (auto i = values.begin(); i != values.end(); ++i){
-      //std::cout << *i << ' ';
+    //Prints LCG values
+    /*for (auto i = lcgvalues.begin(); i != lcgvalues.end(); ++i){
+      std::cout << *i << ' ';
       LCGfile << *i << "\n";
-    }
+    }*/
 
 
 }
