@@ -23,5 +23,5 @@ Run NetAnim:
 ## Run Debugger
 Run debugger:
 ```
-./waf --run part3 --command-template="kdbg %s"
+./waf --run your_file_name --command-template="kdbg %s"
 ```
