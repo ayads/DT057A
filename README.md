@@ -15,7 +15,6 @@ This command may run once NetAnim is comletely installed according to this [link
 Navigate to netanim :
 ```
  cd netanim/
- ./NetAnim
 ```
 Run NetAnim:
 ```
