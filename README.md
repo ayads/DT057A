@@ -11,7 +11,7 @@ Run and save output files in scratch:
 ```
 
 ## Run NetAnim
-This command may run once NetAnim is comletely installed according to this (link)[https://www.nsnam.org/wiki/NetAnim_3.108].
+This command may run once NetAnim is comletely installed according to this [link](https://www.nsnam.org/wiki/NetAnim_3.108).
 Navigate to netanim :
 ```
  cd netanim/
